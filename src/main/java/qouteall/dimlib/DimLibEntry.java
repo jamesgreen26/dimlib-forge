@@ -1,9 +1,9 @@
 package qouteall.dimlib;
 
 import eu.midnightdust.lib.config.MidnightConfig;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
@@ -31,13 +31,16 @@ public class DimLibEntry {
 		context.getModEventBus().addListener(this::onClientSetup);
 		context.getModEventBus().addListener(this::onCommonSetup);
 
-		ServerTickEvents.END_SERVER_TICK.register(server -> {
-			((IMinecraftServer) server).dimlib_processTasks();
-		});
-
 		MidnightConfig.init(
 				MODID, DimLibConfig.class
 		);
+	}
+
+	@SubscribeEvent
+	public void onServerTick(TickEvent.ServerTickEvent event) {
+		if (event.phase == TickEvent.Phase.END) {
+			((IMinecraftServer) event.getServer()).dimlib_processTasks();
+		}
 	}
 
 	public void onCommonSetup(FMLCommonSetupEvent event) {

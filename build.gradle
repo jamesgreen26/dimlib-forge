@@ -30,11 +30,6 @@ repositories {
         content { includeGroup 'maven.modrinth' }
     }
 
-    maven {
-        name = "Sinytra"
-        url = "https://maven.su5ed.dev/releases"
-    }
-
     repositories {
         maven { url 'https://jitpack.io' }
     }
@@ -44,8 +39,6 @@ dependencies {
     minecraft "net.minecraft:minecraft:$project.minecraft_version"
     mappings loom.officialMojangMappings()
     forge "net.minecraftforge:forge:$project.forge_version"
-
-    modImplementation("dev.su5ed.sinytra.fabric-api:fabric-api:${forge_fabric_api_version}")
 
     modImplementation "maven.modrinth:midnightlib:${project.midnightlib_version}"
     include "maven.modrinth:midnightlib:${project.midnightlib_version}"
