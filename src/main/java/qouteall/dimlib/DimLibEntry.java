@@ -1,21 +1,19 @@
 package qouteall.dimlib;
 
 import eu.midnightdust.lib.config.MidnightConfig;
-import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
-import net.fabricmc.fabric.api.networking.v1.PacketSender;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
+import net.minecraftforge.fml.event.lifecycle.FMLCommonSetupEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import qouteall.dimlib.config.DimLibConfig;
 import qouteall.dimlib.ducks.IMinecraftServer;
-import qouteall.dimlib.network.DimSyncPacket;
+import qouteall.dimlib.network.DimLibNetworkHandler;
 
 @Mod(DimLibEntry.MODID)
 public class DimLibEntry {
@@ -29,6 +27,10 @@ public class DimLibEntry {
 
 		DimensionTemplate.init();
 
+		MinecraftForge.EVENT_BUS.register(this);
+		context.getModEventBus().addListener(this::onClientSetup);
+		context.getModEventBus().addListener(this::onCommonSetup);
+
 		ServerTickEvents.END_SERVER_TICK.register(server -> {
 			((IMinecraftServer) server).dimlib_processTasks();
 		});
@@ -36,20 +38,14 @@ public class DimLibEntry {
 		MidnightConfig.init(
 				MODID, DimLibConfig.class
 		);
-
-		context.getModEventBus().addListener(this::onClientSetup);
-		MinecraftForge.EVENT_BUS.register(this);
 	}
 
+	public void onCommonSetup(FMLCommonSetupEvent event) {
+		DimLibNetworkHandler.register();
+	}
 
 	public void onClientSetup(FMLClientSetupEvent event) {
 		LOGGER.info("client setup");
-		ClientPlayNetworking.registerGlobalReceiver(
-				DimSyncPacket.TYPE,
-				(DimSyncPacket packet, LocalPlayer player, PacketSender responseSender) -> {
-					packet.handle(player.connection);
-				}
-		);
 	}
 
 	@SubscribeEvent

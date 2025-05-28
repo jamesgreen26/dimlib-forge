@@ -1,9 +1,6 @@
 package qouteall.dimlib.network;
 
 import com.google.common.collect.ImmutableMap;
-import net.fabricmc.fabric.api.networking.v1.FabricPacket;
-import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
-import net.fabricmc.fabric.api.networking.v1.PacketType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
@@ -18,21 +15,20 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraftforge.network.NetworkEvent;
 import org.apache.commons.lang3.Validate;
 import qouteall.dimlib.DimLibEntry;
 import qouteall.dimlib.client.ClientDimensionInfo;
 import qouteall.dimlib.mixin.client.IClientPacketListener;
 
+import java.util.function.Supplier;
+
 import static qouteall.dimlib.DimLibEntry.MODID;
 
 public record DimSyncPacket(
         CompoundTag dimIdToTypeIdTag
-) implements FabricPacket {
+) {
     public static final ResourceLocation DIM_SYNC_CHANNEL = ResourceLocation.fromNamespaceAndPath(MODID, "dim_sync");
-    public static final PacketType<DimSyncPacket> TYPE = PacketType.create(
-            DIM_SYNC_CHANNEL,
-            DimSyncPacket::new
-    );
 
     public DimSyncPacket(FriendlyByteBuf buf) {
         this(buf.readNbt());
@@ -66,21 +62,8 @@ public record DimSyncPacket(
         return new DimSyncPacket(dimIdToDimTypeId);
     }
 
-    public static FriendlyByteBuf createBuf(MinecraftServer server) {
-        FriendlyByteBuf buf = PacketByteBufs.create();
-        DimSyncPacket packet = DimSyncPacket.createPacket(server);
-        packet.write(buf);
-        return buf;
-    }
-
-    @Override
     public void write(FriendlyByteBuf buf) {
         buf.writeNbt(dimIdToTypeIdTag);
-    }
-
-    @Override
-    public PacketType<?> getType() {
-        return TYPE;
     }
 
     public ImmutableMap<ResourceKey<Level>, ResourceKey<DimensionType>> toMap() {
@@ -105,19 +88,23 @@ public record DimSyncPacket(
         return builder.build();
     }
 
-    public void handle(ClientGamePacketListener listener) {
-        Validate.isTrue(
-                Minecraft.getInstance().isSameThread(),
-                "Not running in client thread"
-        );
+    public void handle(Supplier<NetworkEvent.Context> contextSupplier) {
+        NetworkEvent.Context context = contextSupplier.get();
+        context.enqueueWork(() -> {
+            Validate.isTrue(
+                    Minecraft.getInstance().isSameThread(),
+                    "Not running in client thread"
+            );
 
-        DimLibEntry.LOGGER.info(
-                "Client received dimension info\n{}",
-                String.join("\n", dimIdToTypeIdTag.getAllKeys())
-        );
+            DimLibEntry.LOGGER.info(
+                    "Client received dimension info\n{}",
+                    String.join("\n", dimIdToTypeIdTag.getAllKeys())
+            );
 
-        var dimIdToDimType = this.toMap();
-        ClientDimensionInfo.accept(dimIdToDimType);
-        ((IClientPacketListener) listener).ip_setLevels(dimIdToDimType.keySet());
+            var dimIdToDimType = this.toMap();
+            ClientDimensionInfo.accept(dimIdToDimType);
+            ((IClientPacketListener) Minecraft.getInstance().getConnection()).ip_setLevels(dimIdToDimType.keySet());
+        });
+        context.setPacketHandled(true);
     }
 }
